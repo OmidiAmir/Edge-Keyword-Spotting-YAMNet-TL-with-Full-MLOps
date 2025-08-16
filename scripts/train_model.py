@@ -1,4 +1,3 @@
-# scripts/train_model.py
 import argparse
 from kws.training.train import train_model
 
