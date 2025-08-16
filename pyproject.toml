@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kws"
+version = "0.1.0"
+description = "Keyword spotting baseline (MFCC + Tiny CNN) with MLOps-ready layout."
+requires-python = ">=3.9"
+dependencies = [
+  "torch",
+  "torchaudio",
+  "numpy",
+  "tqdm",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
