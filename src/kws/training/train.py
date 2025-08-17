@@ -1,4 +1,5 @@
 # src/kws/training/train.py
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,6 +8,10 @@ from tqdm import tqdm
 
 from kws.data import KSDataset, collate_pad
 from kws.models.cnn import TinyCNN
+
+# MLflow
+import mlflow
+import mlflow.pytorch
 
 
 @torch.no_grad()
@@ -30,10 +35,13 @@ def train_model(
     n_classes: int = 10,
     num_workers: int = 2,
     device: str | None = None,
+    # MLflow toggles
+    use_mlflow: bool = True,
+    experiment: str = "kws-baseline",
+    run_name: str | None = None,
 ) -> nn.Module:
     """
-    Minimal training loop for TinyCNN on Speech Commands (10 classes).
-
+    Minimal training loop for TinyCNN on Speech Commands with optional MLflow logging.
     Returns:
         Trained nn.Module.
     """
@@ -57,10 +65,26 @@ def train_model(
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
+    # MLflow setup
+    if use_mlflow:
+        mlflow.set_experiment(experiment)
+        if run_name is None:
+            run_name = f"run-{time.strftime('%Y%m%d-%H%M%S')}"
+        mlflow.start_run(run_name=run_name)
+        mlflow.log_params({
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "lr": lr,
+            "n_mfcc": n_mfcc,
+            "n_classes": n_classes,
+            "num_workers": num_workers,
+            "device": device,
+        })
+
     for epoch in range(1, epochs + 1):
         model.train()
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}", leave=False)
-        running_loss = 0.0
+        epoch_loss_sum, epoch_count = 0.0, 0
 
         for X, y in pbar:
             X, y = X.to(device), y.to(device)
@@ -70,10 +94,20 @@ def train_model(
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
-            pbar.set_postfix(loss=f"{running_loss/ (pbar.n or 1):.4f}")
+            epoch_loss_sum += loss.item()
+            epoch_count += 1
+            pbar.set_postfix(loss=f"{epoch_loss_sum / epoch_count:.4f}")
 
         val_acc = evaluate(model, val_loader, device)
-        print(f"[Epoch {epoch}] val_acc = {val_acc:.4f}")
+        avg_loss = epoch_loss_sum / max(epoch_count, 1)
+        print(f"[Epoch {epoch}] loss={avg_loss:.4f}  val_acc={val_acc:.4f}")
+
+        if use_mlflow:
+            mlflow.log_metrics({"train_loss": avg_loss, "val_acc": val_acc}, step=epoch)
+
+    if use_mlflow:
+        # log final model artifact
+        mlflow.pytorch.log_model(model, artifact_path="model")
+        mlflow.end_run()
 
     return model
