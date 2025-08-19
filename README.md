@@ -150,3 +150,23 @@ This ensures the codebase remains stable as new MLOps components are added.
 
 ---
 
+## ## 🚀 Run with Docker
+
+You can run the FastAPI inference service in a container.
+
+### Build the image
+```bash
+docker build -t kws-api .
+``` 
+Run the container
+```bash
+docker run --rm -p 8000:8000 kws-api
+```
+
+The API will be available at:
+- Health check: http://localhost:8000/health
+- Interactive docs: http://localhost:8000/docs
+Send a WAV file
+```bash
+curl -F "file=@data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
+```
