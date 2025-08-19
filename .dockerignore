@@ -1,0 +1,16 @@
+.git
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.env
+.venv
+dist/
+build/
+.mlflow/
+mlruns/
+data/
+tests/
+.notebooks/
+.cache/
