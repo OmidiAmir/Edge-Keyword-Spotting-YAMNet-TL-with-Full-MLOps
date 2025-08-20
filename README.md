@@ -124,15 +124,32 @@ python scripts/infer_wav.py --wav data/SpeechCommands/speech_commands_v0.02/yes/
 ```
 
 ## 🌐 Serving with FastAPI
-- TorchScript model is exported to models/ts_model.pt
-- FastAPI app serves endpoints:
-  - `GET /health` → service status
-  - `POST /predict` → keyword prediction for uploaded .wav
-Run locally:
+
+Once you’ve exported a TorchScript model to `models/ts_model.pt`, you can serve it via FastAPI.
+
+### Run locally (no Docker)
 ```bash
-uvicorn src.kws.api:app --reload --port 8008
+uvicorn kws.serve.app:app --host 0.0.0.0 --port 8000 --reload
 
 ```
+Endpoints:
+- GET /health → service status
+- GET /selftest → sanity check (generates + reads back a dummy tone)
+- POST /predict → keyword prediction for uploaded .wav file
+- POST /predict-bytes → keyword prediction from raw audio bytes
+
+Example request:
+```bash
+# Linux/macOS
+curl -F "file=@data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
+
+# Windows PowerShell (using curl.exe instead of alias)
+$f="C:\Users\omidi\OneDrive\MyMLProjects\edge-keyword-spotting\data\SpeechCommands\speech_commands_v0.02\yes\0a7c2a8d_nohash_0.wav"
+curl.exe -F "file=@$f" http://localhost:8000/predict
+
+```
+
+
 ---
 
 ## 🔄 CI/CD with GitHub Actions
@@ -164,9 +181,11 @@ docker run --rm -p 8000:8000 kws-api
 ```
 
 The API will be available at:
-- Health check: http://localhost:8000/health
-- Interactive docs: http://localhost:8000/docs
-Send a WAV file
+- Health check → http://localhost:8000/health
+- Selftest → http://localhost:8000/selftest
+- Interactive docs → http://localhost:8000/docs
+Example request:
 ```bash
 curl -F "file=@data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
+
 ```
