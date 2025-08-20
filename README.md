@@ -1,5 +1,11 @@
 # Keyword Spotting (Speech Commands) — MLOps-Ready Project
 
+[![CI](https://github.com/OmidiAmir/Edge-Keyword-Spotting-YAMNet-TL-with-Full-MLOps/actions/workflows/ci.yml/badge.svg)](https://github.com/OmidiAmir/Edge-Keyword-Spotting-YAMNet-TL-with-Full-MLOps/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-ready-brightgreen)
+![MLflow](https://img.shields.io/badge/MLflow-tracking-success)
+![Docker](https://img.shields.io/badge/Docker-supported-informational)
+
 Fast, lightweight keyword spotting on the **Google Speech Commands** dataset (subset of 10 common words).  
 Trains quickly (<20 min on RTX 3060) and demonstrates a full **MLOps workflow** step by step:  
 data → model → tests → config → MLflow tracking → CI/CD → FastAPI API.
@@ -7,16 +13,14 @@ data → model → tests → config → MLflow tracking → CI/CD → FastAPI AP
 ---
 
 ## 🚀 Features so far
-- **Dataset** wrapper (`KSDataset`) with MFCC features + class filtering.
-- **Training** script with YAML config support.
-- **Pytest** smoke tests for dataset + training pipeline.
-- **Experiment tracking** with MLflow (logs metrics, artifacts, models).
-- **Model export** to TorchScript (`models/ts_model.pt`).
-- **FastAPI** inference service (real-time keyword spotting API).
+- **Dataset**: `KSDataset` with MFCC features + class filtering (10 keywords).
+- **Training**: baseline CNN (~0.5M params) with YAML config.
+- **Tracking**: MLflow (metrics, artifacts, models).
+- **Export**: TorchScript (`models/ts_model.pt`).
+- **Serving**: FastAPI app with robust audio decoding (ffmpeg + libsndfile).
+- **CI**: GitHub Actions for tests (and easy extension to Docker).
 
 ---
-
-## 📂 Repo Layout (current)
 
 ```bash
 
@@ -51,12 +55,11 @@ keyword-spotting-mlops/
 
 ---
 ## 🛠 Requirements
-- Python 3.9+
-- Torch, Torchaudio, NumPy, tqdm, MLflow, FastAPI, Uvicorn
-- (Exact versions pinned in pyproject.toml)
+- Python **3.11+**
+- PyTorch, Torchaudio, NumPy, tqdm, **MLflow**, **FastAPI**, **Uvicorn**
 ---
 
-## 🛠 Installation
+## 🛠 Installation (dev)
 ```bash
 python -m venv .venv
 # Activate venv
@@ -74,6 +77,10 @@ pip install -e .
 - Sampling rate: **16 kHz**  
 - Format: WAV, 1-second duration
 
+```bash
+python scripts/download_data.py --out data/SpeechCommands
+
+```
 ---
 
 ## 🧠 Baseline Model
@@ -85,43 +92,31 @@ pip install -e .
 
 --- 
 
-## 🧪 Training
-Run training (logs to MLflow automatically):
+## 🧪 Train → Evaluate → Export
 ```bash
-python scripts/train_model.py --data_root data --epochs 10 --batch_size 128
+# Train (logs to MLflow)
+python scripts/train_model.py --config configs/train_model.yaml
+
+# Evaluate a specific run
+python scripts/evaluate_model.py --run_id <RUN_ID>
+
+# Export TorchScript
+python scripts/export_model.py --run_id <RUN_ID> --out models/ts_model.pt
+
+# Local single-file inference (sanity)
+python scripts/infer_wav.py --wav data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav
 
 ```
 
 ---
 
-## 🔄 CI/CD with GitHub Actions
-
-This repo includes a GitHub Actions workflow (.github/workflows/ci.yml) that runs automatically on every push or pull request:
-- ✅ Unit tests (dataset + preprocessing)
-- ✅ Smoke tests (training & inference run)
-
-This ensures code stays stable and reproducible as new MLOps components are added.
-
---- 
 ## 📈 MLflow Tracking
 ```bash
 mlflow ui
 ```
-Then open http://127.0.0.1:5000 to compare experiments and download checkpoints.
+Open http://127.0.0.1:5000 to view experiments, metrics, and checkpoints.
 
 ---
-
-## 📦 Export TorchScript Model
-Pick a run from MLflow, export it:
-```bash
-Pick a run from MLflow, export it:
-```
----
-
-```bash
-python scripts/infer_wav.py --wav data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav
-
-```
 
 ## 🌐 Serving with FastAPI
 
@@ -141,51 +136,40 @@ Endpoints:
 Example request:
 ```bash
 # Linux/macOS
-curl -F "file=@data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
+curl -F "file=@data/SpeechCommands/.../yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
 
-# Windows PowerShell (using curl.exe instead of alias)
-$f="C:\Users\omidi\OneDrive\MyMLProjects\edge-keyword-spotting\data\SpeechCommands\speech_commands_v0.02\yes\0a7c2a8d_nohash_0.wav"
+# Windows PowerShell
+$f="C:\path\to\some.wav"
 curl.exe -F "file=@$f" http://localhost:8000/predict
-
 ```
+---
+## 📦 Docker Support
+Build & run containerized API:
+```bash
+# Build
+docker build -t kws-api .
 
+# Run
+docker run --rm -p 8000:8000 \
+  -v "${PWD}/models:/app/models:ro" \
+  -e MODEL_PATH=/app/models/ts_model.pt \
+  kws-api
+```
+test
+```bash
+curl http://localhost:8000/health
+curl -F "file=@data/SpeechCommands/.../yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
+```
 
 ---
 
 ## 🔄 CI/CD with GitHub Actions
-This repo includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs:
-- Unit tests on every push and pull request
-- Smoke tests to validate training and inference scripts
 
-This ensures the codebase remains stable as new MLOps components are added.
+This repo includes a GitHub Actions workflow (.github/workflows/ci.yml) that runs automatically on every push or pull request:
+- ✅ Unit tests (dataset + preprocessing)
+- ✅ Smoke tests (training & inference run)
+- 🔜 Extend with Docker build/push
 
----
-## 📈 Experiment Tracking
-- Integrated with MLflow
-- Tracks hyperparameters, metrics, and models
-- Run selection based on best validation accuracy
+This ensures code stays stable and reproducible as new MLOps components are added.
 
 ---
-
-## ## 🚀 Run with Docker
-
-You can run the FastAPI inference service in a container.
-
-### Build the image
-```bash
-docker build -t kws-api .
-``` 
-Run the container
-```bash
-docker run --rm -p 8000:8000 kws-api
-```
-
-The API will be available at:
-- Health check → http://localhost:8000/health
-- Selftest → http://localhost:8000/selftest
-- Interactive docs → http://localhost:8000/docs
-Example request:
-```bash
-curl -F "file=@data/SpeechCommands/speech_commands_v0.02/yes/0a7c2a8d_nohash_0.wav" http://localhost:8000/predict
-
-```

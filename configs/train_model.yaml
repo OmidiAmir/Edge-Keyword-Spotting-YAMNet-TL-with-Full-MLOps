@@ -1,5 +1,5 @@
 data_root: "data"
-epochs: 3
+epochs: 20
 batch_size: 128
 lr: 0.001
 n_mfcc: 40
